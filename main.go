@@ -57,7 +57,8 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 	basicAuth := BasicAuth{}
 	err = dynamodbattribute.UnmarshalMap(result.Item, &basicAuth)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to unmarshal Record, %v", err))
+		returnNoAuth(w, "Internal Error")
+		return
 	}
 
 	// Check Password
