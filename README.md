@@ -44,3 +44,19 @@ in API Designer, click on "Raw API Definition"
 Pre is the phase in the cycle where it runs.
 "name" has to be the name of the GO function
 "path" is wherever you put the binary generated in step 1
+
+# Testing
+
+1. Create an entry in DynamoDB
+```
+username - hash
+foo - bar
+```
+
+2. Base encode our user:password combo into "user:pwd" convention
+"foo:bar" becomes "Zm9vOmJhcg=="
+
+3. Make cURL to Tyk Gateway.
+```curl http://www.tyk-test.com:8080/custom-auth-goplugin/headers -H "Authorization:Zm9vOmJhcg=="```
+
+4.  Watch it rate limit!
