@@ -56,7 +56,7 @@ foo - bar
 
 2. Base encode our user:password combo into "user:pwd" convention
 
-"foo:bar" becomes "Zm9vOmJhcg=="
+`foo:bar` becomes `Zm9vOmJhcg==`
 
 3. Make cURL to Tyk Gateway.
 ```curl http://www.tyk-test.com:8080/custom-auth-goplugin/headers -H "Authorization:Zm9vOmJhcg=="```
