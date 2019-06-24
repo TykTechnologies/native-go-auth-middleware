@@ -1,6 +1,17 @@
 # go-dynamodb-basicauth-plugin
 
-Built to be run natively as a package by Tyk Gateways.  
+Built to be run natively as a package by Tyk Gateways.  This will authenticate requests by connecting to DynamoDB and checking the Basic Auth credentials in the request to see if they match what's in the DB.  If success, will let the request continue, otherwise will return an auth error.
+
+# Setup AWS credentials in the GO Plugin
+In here, 
+```
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-2"),
+		Credentials: credentials.NewStaticCredentials("AKID", "SECRET", ""),
+	})
+```
+
+Replace AKID and SECRET with your AWS credentials. Leave the third parameter exactly as is, an empty string.  Make sure the region is accurate also.
 
 # Generate the Binary file
 In the root of the "main.go" file, run 
