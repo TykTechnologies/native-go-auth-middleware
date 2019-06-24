@@ -28,6 +28,7 @@ Then run the compiled Tyk
 in API Designer, click on "Raw API Definition"
 1. Set ` "driver": "goplugin"`
 2. Choose somewhere for your middleware to run in the cycle. ie:
+```
 "custom_middleware": {
       "pre": [
         {
@@ -35,7 +36,7 @@ in API Designer, click on "Raw API Definition"
           "path": "./middleware/go/helloworld.so"
         }
       ],
-      
+   ```   
 Pre is the phase in the cycle where it runs.
 "name" has to be the name of the GO function
 "path" is wherever you put the binary generated in step 1
