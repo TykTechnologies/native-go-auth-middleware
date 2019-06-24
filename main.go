@@ -14,29 +14,34 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-func main() {}
+var svc = &dynamodb.DynamoDB{}
 
-func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
+// Run on startup.  Bootstrapping the service here
+func init() {
+	fmt.Println("Loading the bitch")
+	// Authenticate User in AWS
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-2"),
 		Credentials: credentials.NewStaticCredentials("AKID", "SECRET", ""),
 	})
 	if err != nil {
 		fmt.Println("Couldn't get AWS access")
-		returnNoAuth(w, "Internal Error")
-		return
+		panic("Internal Error")
 	}
-
 	// Create DynamoDB client
-	svc := dynamodb.New(sess)
+	svc = dynamodb.New(sess)
 	if svc == nil {
 		fmt.Println("Couldn't create new DynamoDB session")
-		returnNoAuth(w, "Internal Error")
-		return
+		panic("Internal Error")
 	}
+}
+func main() {}
 
+// Main method to be run by Tyk
+func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 	username, password := unmarshalBasicAuth(r.Header.Get("Authorization"))
 
+	// Get the Basic Auth user/pass matching the username in the request from DynamoDB
 	result, err := svc.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String("basic-auth"),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -45,6 +50,7 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	})
+
 	if err != nil {
 		fmt.Println(err.Error())
 		returnNoAuth(w, "Internal Error")
@@ -67,6 +73,7 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Let the request continue
 	fmt.Println(result)
 }
 
@@ -90,6 +97,7 @@ func unmarshalBasicAuth(s string) (string, string) {
 	return string(splitStr[0]), string(splitStr[1])
 }
 
+// BasicAuth Looks same as the DynamoDB structure
 type BasicAuth struct {
 	Username string
 	Hash     string
