@@ -18,7 +18,6 @@ var svc = &dynamodb.DynamoDB{}
 
 // Run on startup.  Bootstrapping the service here
 func init() {
-	fmt.Println("Loading the bitch")
 	// Authenticate User in AWS
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-2"),
@@ -74,7 +73,7 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Let the request continue
-	fmt.Println(result)
+	fmt.Println("Auth passed")
 }
 
 func returnNoAuth(w http.ResponseWriter, errorMessage string) {
