@@ -50,10 +50,12 @@ Pre is the phase in the cycle where it runs.
 1. Create an entry in DynamoDB
 ```
 username - hash
+-------------
 foo - bar
 ```
 
 2. Base encode our user:password combo into "user:pwd" convention
+
 "foo:bar" becomes "Zm9vOmJhcg=="
 
 3. Make cURL to Tyk Gateway.
