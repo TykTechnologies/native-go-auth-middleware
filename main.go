@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/TykTechnologies/tyk/ctx"
+	"github.com/TykTechnologies/tyk/user"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,7 +18,7 @@ import (
 
 var svc = &dynamodb.DynamoDB{}
 
-// Run on startup.  Bootstrapping the service here
+// Run on startup by Tyk when loaded.  Bootstrapping the service here
 func init() {
 	// Authenticate User in AWS
 	sess, err := session.NewSession(&aws.Config{
@@ -36,9 +38,10 @@ func init() {
 }
 func main() {}
 
-// Main method to be run by Tyk
+// DynamoDBAuth - Main method to be run on each request
 func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
-	username, password := unmarshalBasicAuth(r.Header.Get("Authorization"))
+	encodedHeaderValue := r.Header.Get("Authorization")
+	username, password := unmarshalBasicAuth(encodedHeaderValue)
 
 	// Get the Basic Auth user/pass matching the username in the request from DynamoDB
 	result, err := svc.GetItem(&dynamodb.GetItemInput{
@@ -72,8 +75,16 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create session
+	session := &user.SessionState{
+		OrgID: "default",
+		Rate:  5,
+		Per:   10,
+	}
+	ctx.SetSession(r, session, encodedHeaderValue, true)
+
 	// Let the request continue
-	fmt.Println("Auth passed")
+	fmt.Println("Passed Auth")
 }
 
 func returnNoAuth(w http.ResponseWriter, errorMessage string) {
