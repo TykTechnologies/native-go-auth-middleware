@@ -31,7 +31,7 @@ Then run the compiled Tyk
 
 # Setup your API
 in API Designer, click on "Raw API Definition"
-1. Set ` "driver": "goplugin"` and `use_go_plugin_auth": true`
+1. Set ` "driver": "goplugin"` and `"use_go_plugin_auth": true`
 2. Set the request lifecycle to be run
 ```
 "custom_middleware": {
