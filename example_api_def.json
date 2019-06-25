@@ -13,7 +13,7 @@
       "post_key_auth": [],
       "auth_check": {
         "name": "DynamoDBAuth",
-        "path": "./middleware/go/helloworld.so",
+        "path": "./middleware/go/main.so",
         "require_session": false,
         "raw_body_only": false
       },
