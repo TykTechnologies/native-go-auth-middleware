@@ -19,7 +19,9 @@ Replace AKID and SECRET with your AWS credentials. Leave the third parameter exa
 
 # Generate the Binary file
 In the root of the "main.go" file, run 
+
 `go build -o ./middleware/go/main.so -buildmode=plugin ./middleware/go`
+
 Put the generated file somewhere Tyk Gateway can access it
 
 # Build Tyk to run GOPLUGINS
@@ -41,6 +43,7 @@ in API Designer, click on "Raw API Definition"
       ],
    ```   
 "name" has to be the name of the GO function
+
 "path" is wherever you put the binary generated in step 1
 
 # Testing
