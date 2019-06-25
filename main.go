@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/TykTechnologies/tyk/ctx"
+	"github.com/TykTechnologies/tyk/user"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -19,7 +21,7 @@ const (
 	usersTable = "users"
 	usernameField = "username"
 	authorizationHeader = "Authorization"
-	region = "eu-west-2"
+	region = "us-east-2"
 )
 
 // BasicAuth Looks same as the DynamoDB structure
@@ -30,7 +32,7 @@ type BasicAuth struct {
 
 var svc *dynamodb.DynamoDB
 
-// Run on startup.  Bootstrapping the service here
+// Run on startup by Tyk when loaded.  Bootstrapping the service here
 func init() {
 	// Authenticate User in AWS
 	sess, err := session.NewSession(&aws.Config{
@@ -49,9 +51,10 @@ func main() {
 	//log.Fatal(http.ListenAndServe(":8000", nil))
 }
 
-// Main method to be run by Tyk
+// DynamoDBAuth - Main method to be run on each request
 func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
-	username, password, err := unmarshalBasicAuth(r.Header.Get(authorizationHeader))
+	encodedHeaderValue := r.Header.Get(authorizationHeader)
+	username, password, err := unmarshalBasicAuth(encodedHeaderValue)
 	if err != nil {
 		returnNoAuth(w, err.Error())
 		return
@@ -91,8 +94,16 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create session
+	sess := &user.SessionState{
+		OrgID: "default",
+		Rate:  5,
+		Per:   10,
+	}
+	ctx.SetSession(r, sess, encodedHeaderValue, true)
+
 	// Let the request continue
-	fmt.Println("Auth passed")
+	fmt.Println("Passed Auth")
 }
 
 func returnNoAuth(w http.ResponseWriter, errorMessage string) {
