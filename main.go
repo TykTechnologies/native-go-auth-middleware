@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -14,7 +15,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-var svc = &dynamodb.DynamoDB{}
+const (
+	usersTable = "users"
+	usernameField = "username"
+	authorizationHeader = "Authorization"
+)
+
+// BasicAuth Looks same as the DynamoDB structure
+type BasicAuth struct {
+	Username string `json:"username"`
+	Hash     string `json:"hash"`
+}
+
+var svc *dynamodb.DynamoDB
 
 // Run on startup.  Bootstrapping the service here
 func init() {
@@ -24,27 +37,23 @@ func init() {
 		Credentials: credentials.NewStaticCredentials("AKID", "SECRET", ""),
 	})
 	if err != nil {
-		fmt.Println("Couldn't get AWS access")
-		panic("Internal Error")
+		log.Fatalf("couldn't get AWS access: %v", err.Error())
 	}
 	// Create DynamoDB client
 	svc = dynamodb.New(sess)
-	if svc == nil {
-		fmt.Println("Couldn't create new DynamoDB session")
-		panic("Internal Error")
-	}
 }
+
 func main() {}
 
 // Main method to be run by Tyk
 func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
-	username, password := unmarshalBasicAuth(r.Header.Get("Authorization"))
+	username, password := unmarshalBasicAuth(r.Header.Get(authorizationHeader))
 
 	// Get the Basic Auth user/pass matching the username in the request from DynamoDB
 	result, err := svc.GetItem(&dynamodb.GetItemInput{
-		TableName: aws.String("basic-auth"),
+		TableName: aws.String(usersTable),
 		Key: map[string]*dynamodb.AttributeValue{
-			"username": {
+			usernameField: {
 				S: aws.String(username),
 			},
 		},
@@ -54,7 +63,9 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err.Error())
 		returnNoAuth(w, "Internal Error")
 		return
-	} else if result.Item == nil {
+	}
+
+	if result.Item == nil {
 		returnNoAuth(w, "Username not found.")
 		return
 	}
@@ -83,7 +94,7 @@ func returnNoAuth(w http.ResponseWriter, errorMessage string) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Write(jsonData)
+	_, _ = w.Write(jsonData)
 }
 
 func unmarshalBasicAuth(s string) (string, string) {
@@ -94,10 +105,4 @@ func unmarshalBasicAuth(s string) (string, string) {
 	}
 	splitStr := strings.Split(string(decoded), ":")
 	return string(splitStr[0]), string(splitStr[1])
-}
-
-// BasicAuth Looks same as the DynamoDB structure
-type BasicAuth struct {
-	Username string
-	Hash     string
 }
