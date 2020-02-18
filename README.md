@@ -6,7 +6,7 @@ This is coded is intended to run as the "custom auth" part of the request lifecy
 
 This will authenticate requests by connecting to DynamoDB and checking the Basic Auth credentials in the request to see if they match what's in the DB.  If success, will let the request continue, otherwise will return an auth error.
 
-# Setup AWS credentials in the GO Plugin
+# Setup AWS session in the GO Plugin
 In here, 
 ```
 	sess, err := session.NewSession(&aws.Config{
@@ -17,14 +17,19 @@ In here,
 
 Replace AKID and SECRET with your AWS credentials. Leave the third parameter exactly as is, an empty string.  Make sure the region is accurate also.
 
-# Generate the Binary file
+# Build the plugin binary (shared object) without using go
+`docker run --rm  -v `pwd`:/go/src/plugin-build tykio/tyk-plugin-compiler:v2.9.3 main.so`
+
+
+# Build the plugin binary (shared object) using go
 In the root of the "main.go" file, run 
 
 `go build -o ./middleware/go/main.so -buildmode=plugin ./middleware/go`
 
 Put the generated file somewhere Tyk Gateway can access it
 
-# Build Tyk to run GOPLUGINS
+# Build Tyk binary to run GOPLUGINS
+## Note: this is not required any longer, since Tyk published binaries support it already.
 `go build -tags 'goplugin' -o tyk .`
 
 Then run the compiled Tyk
