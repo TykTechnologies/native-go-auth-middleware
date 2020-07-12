@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/TykTechnologies/tyk/ctx"
 	"github.com/TykTechnologies/tyk/user"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -21,12 +21,13 @@ const (
 	usersTable = "users"
 	usernameField = "username"
 	authorizationHeader = "Authorization"
+	region = "us-east-2"
 )
 
 // BasicAuth Looks same as the DynamoDB structure
 type BasicAuth struct {
-	Username string `json:"username"`
-	Hash     string `json:"hash"`
+	Username string
+	Hash     string
 }
 
 var svc *dynamodb.DynamoDB
@@ -35,8 +36,7 @@ var svc *dynamodb.DynamoDB
 func init() {
 	// Authenticate User in AWS
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-2"),
-		Credentials: credentials.NewStaticCredentials("AKID", "SECRET", ""),
+		Region:      aws.String(region),
 	})
 	if err != nil {
 		log.Fatalf("couldn't get AWS access: %v", err.Error())
@@ -45,12 +45,22 @@ func init() {
 	svc = dynamodb.New(sess)
 }
 
-func main() {}
+func main() {
+	// uncomment and compile normally to test locally
+	//http.HandleFunc("/", DynamoDBAuth)
+	//log.Fatal(http.ListenAndServe(":8000", nil))
+}
 
 // DynamoDBAuth - Main method to be run on each request
 func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 	encodedHeaderValue := r.Header.Get(authorizationHeader)
-	username, password := unmarshalBasicAuth(encodedHeaderValue)
+	username, password, err := unmarshalBasicAuth(encodedHeaderValue)
+	if err != nil {
+		returnNoAuth(w, err.Error())
+		return
+	}
+
+	log.Printf("attempted access with %s:%s", username, password)
 
 	// Get the Basic Auth user/pass matching the username in the request from DynamoDB
 	result, err := svc.GetItem(&dynamodb.GetItemInput{
@@ -61,22 +71,20 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	})
-
 	if err != nil {
-		fmt.Println(err.Error())
-		returnNoAuth(w, "Internal Error")
-		return
-	}
-
-	if result.Item == nil {
-		returnNoAuth(w, "Username not found.")
+		returnNoAuth(w, err.(awserr.Error).Message())
 		return
 	}
 
 	basicAuth := BasicAuth{}
 	err = dynamodbattribute.UnmarshalMap(result.Item, &basicAuth)
 	if err != nil {
-		returnNoAuth(w, "Internal Error")
+		returnNoAuth(w, err.Error())
+		return
+	}
+
+	if basicAuth.Username == "" {
+		returnNoAuth(w, "User not found.")
 		return
 	}
 
@@ -87,33 +95,37 @@ func DynamoDBAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create session
-	session := &user.SessionState{
+	sess := &user.SessionState{
 		OrgID: "default",
 		Rate:  5,
 		Per:   10,
 	}
-	ctx.SetSession(r, session, encodedHeaderValue, true)
+	ctx.SetSession(r, sess, encodedHeaderValue, true)
 
 	// Let the request continue
 	fmt.Println("Passed Auth")
 }
 
 func returnNoAuth(w http.ResponseWriter, errorMessage string) {
-	jsonData, err := json.Marshal(errorMessage)
-	if err != nil {
-		fmt.Println("Couldn't marshal")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	_, _ = w.Write(jsonData)
+	w.WriteHeader(http.StatusUnauthorized)
+	w.Write([]byte(http.StatusText(http.StatusUnauthorized) + " " + errorMessage))
 }
 
-func unmarshalBasicAuth(s string) (string, string) {
+func unmarshalBasicAuth(s string) (string, string, error) {
+	if s == "" {
+		return "", "", errors.New("no credentials supplied")
+	}
+
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
+		return "", "", err
 		fmt.Println("decode error:", err)
-		panic("not decodable")
 	}
+
 	splitStr := strings.Split(string(decoded), ":")
-	return string(splitStr[0]), string(splitStr[1])
+	if len(splitStr) != 2 {
+		return "", "", errors.New("not in user:pass format")
+	}
+
+	return string(splitStr[0]), string(splitStr[1]), nil
 }
